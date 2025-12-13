@@ -15,21 +15,20 @@ import {
 import { AdminService } from '../services/admin.service';
 import { BlockParticipantDto } from '../dto/block-participant.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../guards/permissions.guard';
 import { RoomAdminGuard } from '../guards/room-admin.guard';
-import { RequirePermission } from '../decorators/permissions.decorator';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { Users } from '../../users/entities/users.entity';
+import { RequirePermissions } from 'src/auth/decorators/roles.decorator';
 
 @ApiTags('room-admin')
 @Controller('rooms/:roomId/admin')
-@UseGuards(JwtAuthGuard, RoomAdminGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RoomAdminGuard)
 @ApiBearerAuth()
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Post('participants/:userId/mute')
-  @RequirePermission('participants', 'mute')
+  @RequirePermissions('participants', 'mute')
   @ApiOperation({ summary: 'Mute a participant' })
   @ApiResponse({ status: 200, description: 'Participant muted successfully' })
   async muteParticipant(
@@ -42,7 +41,7 @@ export class AdminController {
   }
 
   @Post('participants/:userId/unmute')
-  @RequirePermission('participants', 'unmute')
+  @RequirePermissions('participants', 'unmute')
   @ApiOperation({ summary: 'Unmute a participant' })
   @ApiResponse({ status: 200, description: 'Participant unmuted successfully' })
   async unmuteParticipant(
@@ -54,7 +53,7 @@ export class AdminController {
   }
 
   @Post('participants/:userId/kick')
-  @RequirePermission('participants', 'kick')
+  @RequirePermissions('participants', 'kick')
   @ApiOperation({ summary: 'Kick a participant from the room' })
   @ApiResponse({ status: 200, description: 'Participant kicked successfully' })
   async kickParticipant(
@@ -66,7 +65,7 @@ export class AdminController {
   }
 
   @Post('participants/:userId/block')
-  @RequirePermission('participants', 'block')
+  @RequirePermissions('participants', 'block')
   @ApiOperation({ summary: 'Block a participant from the room' })
   @ApiResponse({ status: 200, description: 'Participant blocked successfully' })
   async blockParticipant(
@@ -85,7 +84,7 @@ export class AdminController {
   }
 
   @Delete('participants/:userId/block')
-  @RequirePermission('participants', 'block')
+  @RequirePermissions('participants', 'block')
   @ApiOperation({ summary: 'Unblock a participant' })
   @ApiResponse({
     status: 200,
@@ -100,7 +99,7 @@ export class AdminController {
   }
 
   @Post('participants/:userId/promote')
-  @RequirePermission('participants', 'promote')
+  @RequirePermissions('participants', 'promote')
   @ApiOperation({ summary: 'Promote participant to moderator' })
   @ApiResponse({
     status: 200,
@@ -115,7 +114,7 @@ export class AdminController {
   }
 
   @Post('participants/:userId/demote')
-  @RequirePermission('participants', 'promote')
+  @RequirePermissions('participants', 'promote')
   @ApiOperation({ summary: 'Demote moderator to participant' })
   @ApiResponse({ status: 200, description: 'Participant demoted successfully' })
   async demoteToParticipant(
@@ -127,7 +126,7 @@ export class AdminController {
   }
 
   @Post('mute-all')
-  @RequirePermission('participants', 'mute')
+  @RequirePermissions('participants', 'mute')
   @ApiOperation({ summary: 'Mute all participants except yourself' })
   @ApiResponse({ status: 200, description: 'All participants muted' })
   async muteAllParticipants(
@@ -139,7 +138,7 @@ export class AdminController {
   }
 
   @Post('unmute-all')
-  @RequirePermission('participants', 'unmute')
+  @RequirePermissions('participants', 'unmute')
   @ApiOperation({ summary: 'Unmute all participants' })
   @ApiResponse({ status: 200, description: 'All participants unmuted' })
   async unmuteAllParticipants(

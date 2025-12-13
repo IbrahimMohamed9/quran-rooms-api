@@ -9,12 +9,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { Role } from './entities/role.entity';
-import * as fs from 'fs';
-import * as path from 'path';
 import { CustomLoggerService } from '../logger/logger.service';
 import { handleError } from '../utils/error-handler.util';
 import { Users } from '../users/entities/users.entity';
-import { UsersService } from '../users/users.service';
+import { PermissionsService } from './permissions.service';
 
 /**
  * Roles Service
@@ -25,8 +23,6 @@ import { UsersService } from '../users/users.service';
   scope: Scope.REQUEST,
 })
 export class RolesService {
-  private availablePermissions: Record<string, string[]> = {};
-
   /**
    * Constructor
    *
@@ -38,34 +34,9 @@ export class RolesService {
     @InjectRepository(Users)
     private readonly userRepository: Repository<Users>,
     private readonly logger: CustomLoggerService,
+    private readonly permissionsService: PermissionsService,
   ) {
     this.logger.setContext('RolesService');
-
-    // Load available permissions from the JSON file
-    try {
-      const permissionsPath = path.join(process.cwd(), 'permissions.json');
-      const permissionsData = fs.readFileSync(permissionsPath, 'utf8');
-      this.availablePermissions = JSON.parse(permissionsData) as Record<
-        string,
-        string[]
-      >;
-      this.logger.log(
-        'Permissions loaded successfully from: ' + permissionsPath,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to load permissions file: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      this.availablePermissions = {
-        orders: ['read', 'update', 'delete'],
-        users: ['create', 'read', 'update', 'delete'],
-        tables: ['create', 'read', 'update', 'delete'],
-        tableReservations: ['read', 'update', 'delete'],
-      };
-      this.logger.log(
-        'Using full permissions list as fallback due to file loading error',
-      );
-    }
   }
 
   /**
@@ -330,7 +301,7 @@ export class RolesService {
    * @returns Object with available permissions
    */
   getAvailablePermissions(): Record<string, string[]> {
-    return this.availablePermissions;
+    return this.permissionsService.getAvailablePermissions();
   }
 
   /**
@@ -340,28 +311,7 @@ export class RolesService {
    * @returns Boolean indicating if permissions are valid
    */
   validatePermissions(permissions: Record<string, string[]>): boolean {
-    // Check if all resources and actions exist in available permissions
-    for (const resource in permissions) {
-      // Check if resource exists
-      if (!this.availablePermissions[resource]) {
-        this.logger.warn(`Invalid resource in permissions: ${resource}`);
-        return false;
-      }
-
-      const actions = permissions[resource];
-
-      // Check if all actions for this resource are valid
-      for (const action of actions) {
-        if (!this.availablePermissions[resource].includes(action)) {
-          this.logger.warn(
-            `Invalid action '${action}' for resource '${resource}'`,
-          );
-          return false;
-        }
-      }
-    }
-
-    return true;
+    return this.permissionsService.validatePermissions(permissions);
   }
 
   /**

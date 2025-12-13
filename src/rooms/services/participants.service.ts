@@ -29,6 +29,15 @@ export class ParticipantsService {
     private liveKitService: LiveKitService,
   ) {}
 
+  private async ensureRoomSettings(roomId: number): Promise<RoomSettings> {
+    let settings = await this.settingsRepo.findOne({ where: { roomId } });
+    if (!settings) {
+      settings = this.settingsRepo.create({ roomId });
+      await this.settingsRepo.save(settings);
+    }
+    return settings;
+  }
+
   async joinRoom(
     roomId: number,
     userId: number,
@@ -40,6 +49,11 @@ export class ParticipantsService {
 
     if (!room) {
       throw new NotFoundException('Room not found or inactive');
+    }
+
+    let settings = room.settings;
+    if (!settings) {
+      settings = await this.ensureRoomSettings(roomId);
     }
 
     const isBlocked = await this.blockedRepo.findOne({
@@ -63,35 +77,61 @@ export class ParticipantsService {
       relations: ['user'],
     });
 
-    if (participant) {
-      throw new BadRequestException('You are already in this room');
-    }
-
-    const existingParticipant = await this.participantRepo.findOne({
-      where: { roomId, userId },
-      relations: ['user'],
-      order: { joinedAt: 'DESC' },
-    });
-
     const isFirstParticipant = activeCount === 0;
     const participantRole = isFirstParticipant
       ? ParticipantRole.ADMIN
       : ParticipantRole.PARTICIPANT;
 
-    participant = this.participantRepo.create({
-      roomId,
-      userId,
-      participantRole,
-      isMuted: room.settings?.defaultMutedOnJoin ?? false,
-      mutedBy: room.settings?.defaultMutedOnJoin ? room.createdById : null,
-    });
+    if (participant) {
+      const now = new Date();
+      await this.participantRepo.update(participant.id, {
+        joinedAt: now,
+        leftAt: now,
+        isMuted: settings.defaultMutedOnJoin ?? false,
+        mutedBy: settings.defaultMutedOnJoin ? room.createdById : null,
+      });
 
-    await this.participantRepo.save(participant);
+      participant = await this.participantRepo.findOne({
+        where: { id: participant.id },
+        relations: ['user'],
+      });
+    } else {
+      const existingParticipant = await this.participantRepo
+        .createQueryBuilder('p')
+        .where('p.roomId = :roomId AND p.userId = :userId', { roomId, userId })
+        .leftJoinAndSelect('p.user', 'user')
+        .orderBy('p.joinedAt', 'DESC')
+        .getOne();
 
-    participant = await this.participantRepo.findOne({
-      where: { id: participant.id },
-      relations: ['user'],
-    });
+      if (existingParticipant) {
+        await this.participantRepo.update(existingParticipant.id, {
+          leftAt: undefined,
+          participantRole,
+          isMuted: settings.defaultMutedOnJoin ?? false,
+          mutedBy: settings.defaultMutedOnJoin ? room.createdById : null,
+        });
+
+        participant = await this.participantRepo.findOne({
+          where: { id: existingParticipant.id },
+          relations: ['user'],
+        });
+      } else {
+        participant = this.participantRepo.create({
+          roomId,
+          userId,
+          participantRole,
+          isMuted: settings.defaultMutedOnJoin ?? false,
+          mutedBy: settings.defaultMutedOnJoin ? room.createdById : null,
+        });
+
+        await this.participantRepo.save(participant);
+
+        participant = await this.participantRepo.findOne({
+          where: { id: participant.id },
+          relations: ['user'],
+        });
+      }
+    }
 
     if (!participant) {
       throw new NotFoundException('Failed to retrieve participant');

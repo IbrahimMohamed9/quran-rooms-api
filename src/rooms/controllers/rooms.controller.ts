@@ -20,22 +20,21 @@ import { CreateRoomDto } from '../dto/create-room.dto';
 import { UpdateRoomDto } from '../dto/update-room.dto';
 import { ListRoomsDto } from '../dto/list-rooms.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../guards/permissions.guard';
 import { RoomAdminGuard } from '../guards/room-admin.guard';
-import { RequirePermission } from '../decorators/permissions.decorator';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { Users } from '../../users/entities/users.entity';
 import { Room } from '../entities/room.entity';
+import { RequirePermissions } from 'src/auth/decorators/roles.decorator';
 
 @ApiTags('rooms')
 @Controller('rooms')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
   @Post()
-  @RequirePermission('rooms', 'create')
+  @RequirePermissions('rooms', 'create')
   @ApiOperation({ summary: 'Create a new room' })
   @ApiResponse({
     status: 201,
@@ -69,7 +68,7 @@ export class RoomsController {
 
   @Patch(':id')
   @UseGuards(RoomAdminGuard)
-  @RequirePermission('rooms', 'update')
+  @RequirePermissions('rooms', 'update')
   @ApiOperation({ summary: 'Update room details' })
   @ApiResponse({
     status: 200,
@@ -85,7 +84,7 @@ export class RoomsController {
 
   @Delete(':id')
   @UseGuards(RoomAdminGuard)
-  @RequirePermission('rooms', 'delete')
+  @RequirePermissions('rooms', 'delete')
   @ApiOperation({ summary: 'Delete a room' })
   @ApiResponse({ status: 200, description: 'Room deleted successfully' })
   async deleteRoom(@Param('id') id: string): Promise<{ message: string }> {
@@ -95,7 +94,7 @@ export class RoomsController {
 
   @Post(':id/close')
   @UseGuards(RoomAdminGuard)
-  @RequirePermission('rooms', 'close')
+  @RequirePermissions('rooms', 'close')
   @ApiOperation({ summary: 'Close a room' })
   @ApiResponse({ status: 200, description: 'Room closed successfully' })
   async closeRoom(@Param('id') id: string): Promise<{ message: string }> {

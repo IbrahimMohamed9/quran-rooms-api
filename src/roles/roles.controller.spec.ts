@@ -5,7 +5,6 @@ import { RolesController } from './roles.controller';
 import { RolesService } from './roles.service';
 import { Role } from './entities/role.entity';
 import { CustomLoggerService } from '../logger/logger.service';
-import { TenantRepositoryProvider } from '../tenant/tenant-repository.provider';
 
 describe('RolesController', () => {
   let controller: RolesController;

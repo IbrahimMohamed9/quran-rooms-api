@@ -293,14 +293,12 @@ export class UsersController {
     },
   })
   async uploadProfileImage(
-    @Param('tenantId') tenantId: string,
     @MeOrAdminOrAuthorized('users.update') userId: number,
     @UploadedFile() photo: Express.Multer.File,
   ) {
     this.logger.log(`Uploading profile image for user with ID: ${userId}`);
     const imageUrl = await this.imageUploadHelper.uploadImageAndGetUrl(
       photo,
-      tenantId,
       'users',
     );
     return await this.usersService.updateProfileImage(userId, imageUrl);

@@ -21,7 +21,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FileUploadService } from './file-upload.service';
 
 @ApiTags('File Upload')
-@Controller(':tenantId/upload')
+@Controller('upload')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class UploadController {
@@ -31,7 +31,6 @@ export class UploadController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload an image' })
   @ApiConsumes('multipart/form-data')
-  @ApiParam({ name: 'tenantId', description: 'Tenant ID' })
   @ApiResponse({
     status: 201,
     description: 'Image uploaded successfully',
@@ -55,10 +54,7 @@ export class UploadController {
     status: 400,
     description: 'Bad request - Invalid file or file too large',
   })
-  async uploadImage(
-    @Param('tenantId') tenantId: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -82,7 +78,6 @@ export class UploadController {
     summary: 'Upload an image to a specific folder',
   })
   @ApiConsumes('multipart/form-data')
-  @ApiParam({ name: 'tenantId', description: 'Tenant ID' })
   @ApiParam({
     name: 'folder',
     description: 'Folder name (e.g., menu-items, users, restaurants)',
@@ -112,7 +107,6 @@ export class UploadController {
     description: 'Bad request - Invalid file or file too large',
   })
   async uploadImageToFolder(
-    @Param('tenantId') tenantId: string,
     @Param('folder') folder: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
@@ -135,7 +129,6 @@ export class UploadController {
 
   @Delete('image/:filename')
   @ApiOperation({ summary: 'Delete an image' })
-  @ApiParam({ name: 'tenantId', description: 'Tenant ID' })
   @ApiParam({
     name: 'filename',
     description: 'Filename of the image to delete',
@@ -161,10 +154,7 @@ export class UploadController {
     status: 400,
     description: 'Bad request - Failed to delete image',
   })
-  async deleteImage(
-    @Param('tenantId') tenantId: string,
-    @Param('filename') filename: string,
-  ) {
+  async deleteImage(@Param('filename') filename: string) {
     // For now, just return success message since we're using local storage
     // In a real implementation, you would delete the file from the filesystem
     return {

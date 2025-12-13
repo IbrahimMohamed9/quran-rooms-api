@@ -52,10 +52,6 @@ export class AuthController {
 
     const user = await this.authService.login(loginDto);
 
-    if (user.user.role.name !== 'user') {
-      throw new ForbiddenException('Access denied: User role required');
-    }
-
     return user;
   }
 

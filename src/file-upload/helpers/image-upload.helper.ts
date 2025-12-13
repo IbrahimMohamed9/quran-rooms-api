@@ -12,13 +12,11 @@ export class ImageUploadHelper {
    * Upload image and return URL
    *
    * @param photo Uploaded file
-   * @param tenantId Tenant ID for folder organization
    * @param folder Optional subfolder (e.g., 'users', 'meals', 'menu-items')
    * @returns Promise with image URL or empty string
    */
   async uploadImageAndGetUrl(
     photo: Express.Multer.File | undefined,
-    tenantId: string,
     folder?: string,
   ): Promise<string> {
     if (!photo) {

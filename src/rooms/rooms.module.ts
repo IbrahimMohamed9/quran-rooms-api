@@ -11,7 +11,6 @@ import { Room } from './entities/room.entity';
 import { RoomSettings } from './entities/room-settings.entity';
 import { RoomParticipant } from './entities/room-participant.entity';
 import { BlockedParticipant } from './entities/blocked-participant.entity';
-import { PermissionsGuard } from './guards/permissions.guard';
 import { RoomAdminGuard } from './guards/room-admin.guard';
 
 @Module({
@@ -29,7 +28,6 @@ import { RoomAdminGuard } from './guards/room-admin.guard';
     ParticipantsService,
     AdminService,
     LiveKitService,
-    PermissionsGuard,
     RoomAdminGuard,
   ],
   exports: [RoomsService, LiveKitService],

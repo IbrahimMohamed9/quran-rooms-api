@@ -31,8 +31,8 @@ export class RoomsService {
       livekitRoomName,
       maxParticipants: dto.maxParticipants || 50,
       requiresApproval: dto.requiresApproval || false,
-      createdById: creatorId,
     });
+    newRoom.createdById = creatorId;
 
     const savedRoom = await this.roomRepo.save(newRoom);
 
@@ -62,19 +62,17 @@ export class RoomsService {
     const { isActive, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
 
-    const queryBuilder = this.roomRepo
-      .createQueryBuilder('room')
-      .leftJoinAndSelect('room.createdBy', 'createdBy')
-      .leftJoinAndSelect('room.settings', 'settings');
+    const queryBuilder = this.roomRepo.createQueryBuilder('room');
 
     if (isActive !== undefined) {
-      queryBuilder.andWhere('room.is_active = :isActive', { isActive });
+      queryBuilder.andWhere('room.isActive = :isActive', {
+        isActive: Boolean(isActive),
+      });
     }
-
     const [items, total] = await queryBuilder
       .skip(skip)
       .take(limit)
-      .orderBy('room.created_at', 'DESC')
+      .orderBy('room.createdAt', 'DESC')
       .getManyAndCount();
 
     return {
@@ -89,7 +87,7 @@ export class RoomsService {
   async findOne(id: number): Promise<Room> {
     const room = await this.roomRepo.findOne({
       where: { id },
-      relations: ['createdBy', 'settings', 'participants', 'participants.user'],
+      relations: ['createdBy', 'settings', 'participants'],
     });
 
     if (!room) {
