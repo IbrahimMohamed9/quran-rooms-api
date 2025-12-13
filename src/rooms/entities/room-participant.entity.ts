@@ -69,7 +69,7 @@ export class RoomParticipant {
     description: 'ID of user who muted this participant (null if self-muted)',
     required: false,
   })
-  @Column({ nullable: true, name: 'muted_by' })
+  @Column({ type: 'int', nullable: true, name: 'muted_by' })
   mutedBy: number | null;
 
   @ApiProperty({ description: 'When the participant joined' })
