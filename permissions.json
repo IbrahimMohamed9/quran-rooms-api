@@ -1,0 +1,6 @@
+{
+  "users": ["create", "read", "update", "delete"],
+  "roles": ["create", "read", "update", "delete"],
+  "rooms": ["create", "read", "update", "delete", "close"],
+  "participants": ["read", "mute", "unmute", "kick", "block", "promote"]
+}
