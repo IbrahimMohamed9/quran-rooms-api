@@ -384,7 +384,7 @@ LIVEKIT_URL=wss://your-livekit-server.com
 
 ## API Documentation
 
-Access Swagger documentation at: `http://localhost:3030/docs`
+Access Swagger documentation at: `http://localhost:3030/api/api-docs`
 
 All LiveKit endpoints are documented with:
 
