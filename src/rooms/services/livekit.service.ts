@@ -11,9 +11,9 @@ export class LiveKitService {
   private wsUrl: string;
 
   constructor(private configService: ConfigService) {
-    this.apiKey = this.configService.get('LIVEKIT_API_KEY');
-    this.apiSecret = this.configService.get('LIVEKIT_API_SECRET');
-    this.wsUrl = this.configService.get('LIVEKIT_URL');
+    this.apiKey = this.configService.get('LIVEKIT_API_KEY') || '';
+    this.apiSecret = this.configService.get('LIVEKIT_API_SECRET') || '';
+    this.wsUrl = this.configService.get('LIVEKIT_URL') || '';
 
     this.roomService = new RoomServiceClient(
       this.wsUrl,

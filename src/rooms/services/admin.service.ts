@@ -1,0 +1,215 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, IsNull } from 'typeorm';
+import {
+  RoomParticipant,
+  ParticipantRole,
+} from '../entities/room-participant.entity';
+import { BlockedParticipant } from '../entities/blocked-participant.entity';
+import { Room } from '../entities/room.entity';
+import { LiveKitService } from './livekit.service';
+
+@Injectable()
+export class AdminService {
+  constructor(
+    @InjectRepository(RoomParticipant)
+    private participantRepo: Repository<RoomParticipant>,
+    @InjectRepository(BlockedParticipant)
+    private blockedRepo: Repository<BlockedParticipant>,
+    @InjectRepository(Room)
+    private roomRepo: Repository<Room>,
+    private liveKitService: LiveKitService,
+  ) {}
+
+  async muteParticipant(
+    roomId: number,
+    targetUserId: number,
+    adminUserId: number,
+  ): Promise<void> {
+    const participant = await this.participantRepo.findOne({
+      where: { roomId, userId: targetUserId, leftAt: IsNull() },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found in room');
+    }
+
+    await this.participantRepo.update(participant.id, {
+      isMuted: true,
+      mutedBy: adminUserId,
+    });
+
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    await this.liveKitService.muteParticipant(
+      room.livekitRoomName,
+      `user_${targetUserId}`,
+    );
+  }
+
+  async unmuteParticipant(roomId: number, targetUserId: number): Promise<void> {
+    const participant = await this.participantRepo.findOne({
+      where: { roomId, userId: targetUserId, leftAt: IsNull() },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found in room');
+    }
+
+    await this.participantRepo.update(participant.id, {
+      isMuted: false,
+      mutedBy: null,
+    });
+
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    await this.liveKitService.unmuteParticipant(
+      room.livekitRoomName,
+      `user_${targetUserId}`,
+    );
+  }
+
+  async kickParticipant(roomId: number, targetUserId: number): Promise<void> {
+    const participant = await this.participantRepo.findOne({
+      where: { roomId, userId: targetUserId, leftAt: IsNull() },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found in room');
+    }
+
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (room.createdById === targetUserId) {
+      throw new BadRequestException('Cannot kick room creator');
+    }
+
+    await this.participantRepo.update(participant.id, {
+      leftAt: new Date(),
+    });
+
+    await this.liveKitService.removeParticipant(
+      room.livekitRoomName,
+      `user_${targetUserId}`,
+    );
+  }
+
+  async blockParticipant(
+    roomId: number,
+    targetUserId: number,
+    adminUserId: number,
+    reason?: string,
+  ): Promise<void> {
+    try {
+      await this.kickParticipant(roomId, targetUserId);
+    } catch (e) {}
+
+    const blocked = this.blockedRepo.create({
+      roomId,
+      userId: targetUserId,
+      blockedById: adminUserId,
+      reason,
+    });
+
+    await this.blockedRepo.save(blocked);
+  }
+
+  async unblockParticipant(
+    roomId: number,
+    targetUserId: number,
+  ): Promise<void> {
+    const blocked = await this.blockedRepo.findOne({
+      where: { roomId, userId: targetUserId },
+    });
+
+    if (!blocked) {
+      throw new NotFoundException('User is not blocked in this room');
+    }
+
+    await this.blockedRepo.remove(blocked);
+  }
+
+  async promoteToModerator(
+    roomId: number,
+    targetUserId: number,
+  ): Promise<void> {
+    const participant = await this.participantRepo.findOne({
+      where: { roomId, userId: targetUserId, leftAt: IsNull() },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found in room');
+    }
+
+    await this.participantRepo.update(participant.id, {
+      participantRole: ParticipantRole.MODERATOR,
+    });
+  }
+
+  async demoteToParticipant(
+    roomId: number,
+    targetUserId: number,
+  ): Promise<void> {
+    const participant = await this.participantRepo.findOne({
+      where: { roomId, userId: targetUserId, leftAt: IsNull() },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found in room');
+    }
+
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (room.createdById === targetUserId) {
+      throw new BadRequestException('Cannot demote room creator');
+    }
+
+    await this.participantRepo.update(participant.id, {
+      participantRole: ParticipantRole.PARTICIPANT,
+    });
+  }
+
+  async muteAll(roomId: number, excludeUserId?: number): Promise<void> {
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+
+    const updateQuery = this.participantRepo
+      .createQueryBuilder()
+      .update()
+      .set({ isMuted: true, mutedBy: excludeUserId })
+      .where('room_id = :roomId', { roomId })
+      .andWhere('left_at IS NULL');
+
+    if (excludeUserId) {
+      updateQuery.andWhere('user_id != :excludeUserId', { excludeUserId });
+    }
+
+    await updateQuery.execute();
+
+    await this.liveKitService.muteAllParticipants(
+      room.livekitRoomName,
+      excludeUserId ? `user_${excludeUserId}` : undefined,
+    );
+  }
+
+  async unmuteAll(roomId: number): Promise<void> {
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+
+    await this.participantRepo.update(
+      { roomId, leftAt: IsNull() },
+      { isMuted: false, mutedBy: null },
+    );
+
+    const participants = await this.participantRepo.find({
+      where: { roomId, leftAt: IsNull() },
+    });
+
+    const unmutePromises = participants.map((p) =>
+      this.liveKitService.unmuteParticipant(
+        room.livekitRoomName,
+        `user_${p.userId}`,
+      ),
+    );
+
+    await Promise.all(unmutePromises);
+  }
+}
