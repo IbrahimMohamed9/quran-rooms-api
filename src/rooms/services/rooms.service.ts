@@ -25,7 +25,7 @@ export class RoomsService {
   async createRoom(dto: CreateRoomDto, creatorId: number): Promise<Room> {
     const livekitRoomName = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    const room = this.roomRepo.create({
+    const newRoom = this.roomRepo.create({
       name: dto.name,
       description: dto.description,
       livekitRoomName,
@@ -34,7 +34,7 @@ export class RoomsService {
       createdById: creatorId,
     });
 
-    const savedRoom = await this.roomRepo.save(room);
+    const savedRoom = await this.roomRepo.save(newRoom);
 
     const settings = this.settingsRepo.create({
       roomId: savedRoom.id,
@@ -46,10 +46,16 @@ export class RoomsService {
 
     await this.settingsRepo.save(settings);
 
-    return this.roomRepo.findOne({
+    const room = await this.roomRepo.findOne({
       where: { id: savedRoom.id },
       relations: ['createdBy', 'settings'],
     });
+
+    if (!room) {
+      throw new NotFoundException('Failed to retrieve created room');
+    }
+
+    return room;
   }
 
   async findAll(query: ListRoomsDto) {

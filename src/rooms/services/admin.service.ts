@@ -44,6 +44,9 @@ export class AdminService {
     });
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
     await this.liveKitService.muteParticipant(
       room.livekitRoomName,
       `user_${targetUserId}`,
@@ -65,6 +68,9 @@ export class AdminService {
     });
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
     await this.liveKitService.unmuteParticipant(
       room.livekitRoomName,
       `user_${targetUserId}`,
@@ -81,6 +87,9 @@ export class AdminService {
     }
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
     if (room.createdById === targetUserId) {
       throw new BadRequestException('Cannot kick room creator');
     }
@@ -160,6 +169,9 @@ export class AdminService {
     }
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
     if (room.createdById === targetUserId) {
       throw new BadRequestException('Cannot demote room creator');
     }
@@ -171,11 +183,14 @@ export class AdminService {
 
   async muteAll(roomId: number, excludeUserId?: number): Promise<void> {
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
 
     const updateQuery = this.participantRepo
       .createQueryBuilder()
       .update()
-      .set({ isMuted: true, mutedBy: excludeUserId })
+      .set({ isMuted: true, mutedBy: excludeUserId || null })
       .where('room_id = :roomId', { roomId })
       .andWhere('left_at IS NULL');
 
@@ -193,6 +208,9 @@ export class AdminService {
 
   async unmuteAll(roomId: number): Promise<void> {
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
 
     await this.participantRepo.update(
       { roomId, leftAt: IsNull() },

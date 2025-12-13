@@ -70,7 +70,7 @@ export class RoomParticipant {
     required: false,
   })
   @Column({ nullable: true, name: 'muted_by' })
-  mutedBy: number;
+  mutedBy: number | null;
 
   @ApiProperty({ description: 'When the participant joined' })
   @CreateDateColumn({ name: 'joined_at' })

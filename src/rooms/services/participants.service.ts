@@ -82,8 +82,8 @@ export class ParticipantsService {
       roomId,
       userId,
       participantRole,
-      isMuted: room.settings.defaultMutedOnJoin,
-      mutedBy: room.settings.defaultMutedOnJoin ? room.createdById : null,
+      isMuted: room.settings?.defaultMutedOnJoin ?? false,
+      mutedBy: room.settings?.defaultMutedOnJoin ? room.createdById : null,
     });
 
     await this.participantRepo.save(participant);
@@ -93,7 +93,11 @@ export class ParticipantsService {
       relations: ['user'],
     });
 
-    const token = this.liveKitService.generateToken(
+    if (!participant) {
+      throw new NotFoundException('Failed to retrieve participant');
+    }
+
+    const token = await this.liveKitService.generateToken(
       room.livekitRoomName,
       `user_${userId}`,
       participant.user.name,
@@ -118,12 +122,14 @@ export class ParticipantsService {
     });
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
-    try {
-      await this.liveKitService.removeParticipant(
-        room.livekitRoomName,
-        `user_${userId}`,
-      );
-    } catch (error) {}
+    if (room) {
+      try {
+        await this.liveKitService.removeParticipant(
+          room.livekitRoomName,
+          `user_${userId}`,
+        );
+      } catch (error) {}
+    }
   }
 
   async muteSelf(
@@ -143,6 +149,10 @@ export class ParticipantsService {
       where: { roomId },
     });
 
+    if (!settings) {
+      throw new NotFoundException('Room settings not found');
+    }
+
     if (!settings.allowMicControl && muted === false) {
       throw new ForbiddenException('You cannot unmute yourself in this room');
     }
@@ -161,6 +171,9 @@ export class ParticipantsService {
     });
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
     if (muted) {
       await this.liveKitService.muteParticipant(
         room.livekitRoomName,

@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
+import {
+  AccessToken,
+  RoomServiceClient,
+  TrackSource,
+} from 'livekit-server-sdk';
 import { ParticipantRole } from '../entities/room-participant.entity';
 
 @Injectable()
@@ -22,13 +26,13 @@ export class LiveKitService {
     );
   }
 
-  generateToken(
+  async generateToken(
     roomName: string,
     participantIdentity: string,
     participantName: string,
     role: ParticipantRole,
     isMuted: boolean = false,
-  ): string {
+  ): Promise<string> {
     const at = new AccessToken(this.apiKey, this.apiSecret, {
       identity: participantIdentity,
       name: participantName,
@@ -41,11 +45,10 @@ export class LiveKitService {
       canPublish: !isMuted,
       canSubscribe: true,
       canPublishData: true,
-
-      canPublishSources: ['microphone'],
+      canPublishSources: [TrackSource.MICROPHONE],
     });
 
-    return at.toJwt();
+    return await at.toJwt();
   }
 
   async muteParticipant(roomName: string, participantIdentity: string) {
