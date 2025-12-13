@@ -25,10 +25,11 @@ import { CurrentUser } from '../decorators/current-user.decorator';
 import { Users } from '../../users/entities/users.entity';
 import { Room } from '../entities/room.entity';
 import { RequirePermissions } from 'src/auth/decorators/roles.decorator';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
 
 @ApiTags('rooms')
 @Controller('rooms')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
