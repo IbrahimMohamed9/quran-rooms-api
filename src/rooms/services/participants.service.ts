@@ -63,10 +63,15 @@ export class ParticipantsService {
       where: { roomId, isActive: true },
     });
 
-    const participantRole = user
-      ? user.id === room.createdById
-        ? ParticipantRole.ADMIN
-        : ParticipantRole.PARTICIPANT
+    const userParticipantPermissions = user?.role?.permissions?.participants;
+    const hasParticipantsModerationPermission = Array.isArray(
+      userParticipantPermissions,
+    )
+      ? userParticipantPermissions.some((p) => ['manage'].includes(p))
+      : false;
+
+    const participantRole = hasParticipantsModerationPermission
+      ? ParticipantRole.ADMIN
       : ParticipantRole.PARTICIPANT;
 
     if (existingParticipant) {

@@ -15,6 +15,7 @@ import { RoomSettings } from './entities/room-settings.entity';
 import { RoomParticipant } from './entities/room-participant.entity';
 import { Users } from '../users/entities/users.entity';
 import { CustomLoggerService } from '../logger/logger.service';
+import { LiveKitWebhookController } from './controllers/livekit-webhook.controller';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { CustomLoggerService } from '../logger/logger.service';
       }),
     }),
   ],
-  controllers: [RoomsController],
+  controllers: [RoomsController, LiveKitWebhookController],
   providers: [
     RoomsGateway,
     RoomsService,

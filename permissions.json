@@ -2,5 +2,5 @@
   "users": ["create", "read", "update"],
   "roles": ["create", "read", "update", "delete"],
   "rooms": ["create", "update", "delete", "close"],
-  "participants": ["mute", "unmute", "kick", "block", "promote"]
+  "participants": ["manage"]
 }
