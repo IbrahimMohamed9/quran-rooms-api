@@ -42,12 +42,33 @@ export class RoomsGateway
     this.logger.log('WebSocket Gateway initialized');
   }
 
+  private getRoomSocketCount(roomId: number): number {
+    const roomName = `room:${roomId}`;
+    const room = this.server?.sockets?.adapter?.rooms?.get(roomName);
+    return room ? room.size : 0;
+  }
+
+  private broadcastRoomParticipantsCount(roomId: number) {
+    const count = this.getRoomSocketCount(roomId);
+    // Broadcast to clients inside the room as well as global listeners (lists/dashboards)
+    this.server.to(`room:${roomId}`).emit('room:participantsCountChanged', {
+      roomId,
+      count,
+    });
+    this.server.emit('room:participantsCountChanged', { roomId, count });
+  }
+
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
   }
 
   async handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+
+    const joinedRoomId = client.data?.joinedRoomId as number | undefined;
+    if (joinedRoomId) {
+      this.broadcastRoomParticipantsCount(joinedRoomId);
+    }
   }
 
   // Room Events
@@ -59,7 +80,22 @@ export class RoomsGateway
   ) {
     try {
       const rooms = await this.roomsService.findAll(data || {});
-      return { ok: true, data: rooms };
+
+      // roomsService.findAll returns a paged object: { items, total, ... }
+      const items = Array.isArray((rooms as any)?.items)
+        ? (rooms as any).items
+        : [];
+
+      return {
+        ok: true,
+        data: {
+          ...(rooms as any),
+          items: items.map((r: any) => ({
+            ...r,
+            participantsCount: this.getRoomSocketCount(r.id),
+          })),
+        },
+      };
     } catch (error) {
       this.logger.error('Error listing rooms', error);
       return { ok: false, error: error.message };
@@ -73,7 +109,13 @@ export class RoomsGateway
   ) {
     try {
       const room = await this.roomsService.findOne(data.id);
-      return { ok: true, data: room };
+      return {
+        ok: true,
+        data: {
+          ...(room as any),
+          participantsCount: this.getRoomSocketCount(data.id),
+        },
+      };
     } catch (error) {
       this.logger.error(`Error getting room ${data.id}`, error);
       return { ok: false, error: error.message };
@@ -167,13 +209,17 @@ export class RoomsGateway
 
       // Join the room channel
       client.join(`room:${data.roomId}`);
+      client.data.joinedRoomId = data.roomId;
 
       // Notify other participants
       this.server.to(`room:${data.roomId}`).emit('room:participantsUpdated', {
         roomId: data.roomId,
         participant: result.participant,
         action: 'joined',
+        participantsCount: this.getRoomSocketCount(data.roomId),
       });
+
+      this.broadcastRoomParticipantsCount(data.roomId);
 
       return { ok: true, data: result };
     } catch (error) {
@@ -221,13 +267,17 @@ export class RoomsGateway
 
       // Leave the room channel
       client.leave(`room:${data.roomId}`);
+      client.data.joinedRoomId = undefined;
 
       // Notify other participants
       this.server.to(`room:${data.roomId}`).emit('room:participantsUpdated', {
         roomId: data.roomId,
         userToken: data.token,
         action: 'left',
+        participantsCount: this.getRoomSocketCount(data.roomId),
       });
+
+      this.broadcastRoomParticipantsCount(data.roomId);
 
       return { ok: true, message: 'Successfully left room' };
     } catch (error) {
@@ -284,9 +334,16 @@ export class RoomsGateway
         roomId: data.roomId,
         userId: data.userId,
         action: 'kicked',
+        participantsCount: this.getRoomSocketCount(data.roomId),
       });
 
-      return { ok: true, message: 'Participant kicked successfully' };
+      this.broadcastRoomParticipantsCount(data.roomId);
+
+      return {
+        ok: true,
+        message: 'Participant kicked successfully',
+        participantsCount: this.getRoomSocketCount(data.roomId),
+      };
     } catch (error) {
       this.logger.error(
         `Error kicking participant from room ${data.roomId}`,
