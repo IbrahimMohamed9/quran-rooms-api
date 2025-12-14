@@ -20,7 +20,6 @@ import { CreateRoomDto } from '../dto/create-room.dto';
 import { UpdateRoomDto } from '../dto/update-room.dto';
 import { ListRoomsDto } from '../dto/list-rooms.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RoomAdminGuard } from '../guards/room-admin.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { Users } from '../../users/entities/users.entity';
 import { Room } from '../entities/room.entity';
@@ -29,12 +28,12 @@ import { RolesGuard } from 'src/auth/guards/roles.guard';
 
 @ApiTags('rooms')
 @Controller('rooms')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @RequirePermissions('rooms', 'create')
   @ApiOperation({ summary: 'Create a new room' })
   @ApiResponse({
@@ -68,7 +67,8 @@ export class RoomsController {
   }
 
   @Patch(':id')
-  @UseGuards(RoomAdminGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @RequirePermissions('rooms', 'update')
   @ApiOperation({ summary: 'Update room details' })
   @ApiResponse({
@@ -84,7 +84,8 @@ export class RoomsController {
   }
 
   @Delete(':id')
-  @UseGuards(RoomAdminGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @RequirePermissions('rooms', 'delete')
   @ApiOperation({ summary: 'Delete a room' })
   @ApiResponse({ status: 200, description: 'Room deleted successfully' })
@@ -94,7 +95,8 @@ export class RoomsController {
   }
 
   @Post(':id/close')
-  @UseGuards(RoomAdminGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @ApiBearerAuth()
   @RequirePermissions('rooms', 'close')
   @ApiOperation({ summary: 'Close a room' })
   @ApiResponse({ status: 200, description: 'Room closed successfully' })

@@ -17,7 +17,7 @@ export const MeOrAdminOrAuthorized = createParamDecorator(
 
     if (
       user.role?.name === 'admin' ||
-      Number(user.userId) === userId ||
+      Number(user.id) === userId ||
       user.permissions?.includes(data)
     ) {
       return userId;

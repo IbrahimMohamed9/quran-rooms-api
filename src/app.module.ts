@@ -24,7 +24,7 @@ import { FileUploadModule } from './file-upload/file-upload.module';
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: false,
+        synchronize: true,
       }),
     }),
     UsersModule,

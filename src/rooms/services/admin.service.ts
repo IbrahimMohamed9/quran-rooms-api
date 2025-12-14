@@ -9,7 +9,6 @@ import {
   RoomParticipant,
   ParticipantRole,
 } from '../entities/room-participant.entity';
-import { BlockedParticipant } from '../entities/blocked-participant.entity';
 import { Room } from '../entities/room.entity';
 import { LiveKitService } from './livekit.service';
 
@@ -18,8 +17,6 @@ export class AdminService {
   constructor(
     @InjectRepository(RoomParticipant)
     private participantRepo: Repository<RoomParticipant>,
-    @InjectRepository(BlockedParticipant)
-    private blockedRepo: Repository<BlockedParticipant>,
     @InjectRepository(Room)
     private roomRepo: Repository<Room>,
     private liveKitService: LiveKitService,
@@ -102,83 +99,6 @@ export class AdminService {
       room.livekitRoomName,
       `user_${targetUserId}`,
     );
-  }
-
-  async blockParticipant(
-    roomId: number,
-    targetUserId: number,
-    adminUserId: number,
-    reason?: string,
-  ): Promise<void> {
-    try {
-      await this.kickParticipant(roomId, targetUserId);
-    } catch (e) {}
-
-    const blocked = this.blockedRepo.create({
-      roomId,
-      userId: targetUserId,
-      blockedById: adminUserId,
-      reason,
-    });
-
-    await this.blockedRepo.save(blocked);
-  }
-
-  async unblockParticipant(
-    roomId: number,
-    targetUserId: number,
-  ): Promise<void> {
-    const blocked = await this.blockedRepo.findOne({
-      where: { roomId, userId: targetUserId },
-    });
-
-    if (!blocked) {
-      throw new NotFoundException('User is not blocked in this room');
-    }
-
-    await this.blockedRepo.remove(blocked);
-  }
-
-  async promoteToModerator(
-    roomId: number,
-    targetUserId: number,
-  ): Promise<void> {
-    const participant = await this.participantRepo.findOne({
-      where: { roomId, userId: targetUserId, leftAt: IsNull() },
-    });
-
-    if (!participant) {
-      throw new NotFoundException('Participant not found in room');
-    }
-
-    await this.participantRepo.update(participant.id, {
-      participantRole: ParticipantRole.MODERATOR,
-    });
-  }
-
-  async demoteToParticipant(
-    roomId: number,
-    targetUserId: number,
-  ): Promise<void> {
-    const participant = await this.participantRepo.findOne({
-      where: { roomId, userId: targetUserId, leftAt: IsNull() },
-    });
-
-    if (!participant) {
-      throw new NotFoundException('Participant not found in room');
-    }
-
-    const room = await this.roomRepo.findOne({ where: { id: roomId } });
-    if (!room) {
-      throw new NotFoundException('Room not found');
-    }
-    if (room.createdById === targetUserId) {
-      throw new BadRequestException('Cannot demote room creator');
-    }
-
-    await this.participantRepo.update(participant.id, {
-      participantRole: ParticipantRole.PARTICIPANT,
-    });
   }
 
   async muteAll(roomId: number, excludeUserId?: number): Promise<void> {

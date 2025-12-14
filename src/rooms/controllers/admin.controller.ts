@@ -15,14 +15,13 @@ import {
 import { AdminService } from '../services/admin.service';
 import { BlockParticipantDto } from '../dto/block-participant.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RoomAdminGuard } from '../guards/room-admin.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
 import { Users } from '../../users/entities/users.entity';
 import { RequirePermissions } from 'src/auth/decorators/roles.decorator';
 
 @ApiTags('room-admin')
 @Controller('rooms/:roomId/admin')
-@UseGuards(JwtAuthGuard, RoomAdminGuard)
+@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
@@ -62,67 +61,6 @@ export class AdminController {
   ): Promise<{ message: string }> {
     await this.adminService.kickParticipant(+roomId, +userId);
     return { message: 'Participant kicked successfully' };
-  }
-
-  @Post('participants/:userId/block')
-  @RequirePermissions('participants', 'block')
-  @ApiOperation({ summary: 'Block a participant from the room' })
-  @ApiResponse({ status: 200, description: 'Participant blocked successfully' })
-  async blockParticipant(
-    @Param('roomId') roomId: string,
-    @Param('userId') userId: string,
-    @Body() dto: BlockParticipantDto,
-    @CurrentUser() user: Users,
-  ): Promise<{ message: string }> {
-    await this.adminService.blockParticipant(
-      +roomId,
-      +userId,
-      user.id,
-      dto.reason,
-    );
-    return { message: 'Participant blocked successfully' };
-  }
-
-  @Delete('participants/:userId/block')
-  @RequirePermissions('participants', 'block')
-  @ApiOperation({ summary: 'Unblock a participant' })
-  @ApiResponse({
-    status: 200,
-    description: 'Participant unblocked successfully',
-  })
-  async unblockParticipant(
-    @Param('roomId') roomId: string,
-    @Param('userId') userId: string,
-  ): Promise<{ message: string }> {
-    await this.adminService.unblockParticipant(+roomId, +userId);
-    return { message: 'Participant unblocked successfully' };
-  }
-
-  @Post('participants/:userId/promote')
-  @RequirePermissions('participants', 'promote')
-  @ApiOperation({ summary: 'Promote participant to moderator' })
-  @ApiResponse({
-    status: 200,
-    description: 'Participant promoted successfully',
-  })
-  async promoteToModerator(
-    @Param('roomId') roomId: string,
-    @Param('userId') userId: string,
-  ): Promise<{ message: string }> {
-    await this.adminService.promoteToModerator(+roomId, +userId);
-    return { message: 'Participant promoted to moderator' };
-  }
-
-  @Post('participants/:userId/demote')
-  @RequirePermissions('participants', 'promote')
-  @ApiOperation({ summary: 'Demote moderator to participant' })
-  @ApiResponse({ status: 200, description: 'Participant demoted successfully' })
-  async demoteToParticipant(
-    @Param('roomId') roomId: string,
-    @Param('userId') userId: string,
-  ): Promise<{ message: string }> {
-    await this.adminService.demoteToParticipant(+roomId, +userId);
-    return { message: 'Participant demoted to participant' };
   }
 
   @Post('mute-all')

@@ -1,7 +1,7 @@
 import { Request } from 'express';
 
 export interface UserPayload {
-  userId: number;
+  id: number;
   email: string;
   roles: string[];
   permissions?: string[];

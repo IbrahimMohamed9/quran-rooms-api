@@ -18,7 +18,6 @@ export enum ParticipantRole {
 }
 
 @Entity('room_participants')
-@Unique(['roomId', 'userId'])
 export class RoomParticipant {
   @ApiProperty({ description: 'Unique identifier for the participant record' })
   @PrimaryGeneratedColumn()
@@ -36,14 +35,36 @@ export class RoomParticipant {
   })
   room: Room;
 
-  @ApiProperty({ description: 'ID of the user' })
-  @Column({ name: 'user_id' })
-  userId: number;
+  @ApiProperty({ description: 'ID of the user', required: false })
+  @Column({ name: 'user_id', nullable: true })
+  userId: number | null;
 
   @ManyToOne(() => Users, { eager: true })
   @JoinColumn({ name: 'user_id' })
-  @ApiProperty({ description: 'The user participating', type: () => Users })
-  user: Users;
+  @ApiProperty({
+    description: 'The user participating',
+    type: () => Users,
+    required: false,
+  })
+  user: Users | null;
+
+  @ApiProperty({ description: 'Token for guest participants', required: false })
+  @Column({
+    type: 'varchar',
+    name: 'participant_token',
+    nullable: true,
+    length: 255,
+  })
+  participantToken: string | null;
+
+  @ApiProperty({ description: 'Name of the participant', required: false })
+  @Column({
+    type: 'varchar',
+    name: 'participant_name',
+    nullable: true,
+    length: 255,
+  })
+  participantName: string | null;
 
   @ApiProperty({
     description: 'Role of the participant in this room',

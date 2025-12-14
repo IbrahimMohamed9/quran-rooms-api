@@ -12,7 +12,6 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { Users } from '../../users/entities/users.entity';
 import { RoomParticipant } from './room-participant.entity';
-import { BlockedParticipant } from './blocked-participant.entity';
 import { RoomSettings } from './room-settings.entity';
 
 @Entity('rooms')
@@ -86,9 +85,6 @@ export class Room {
 
   @OneToMany(() => RoomParticipant, (participant) => participant.room)
   participants: RoomParticipant[];
-
-  @OneToMany(() => BlockedParticipant, (blocked) => blocked.room)
-  blockedUsers: BlockedParticipant[];
 
   @OneToOne(() => RoomSettings, (settings) => settings.room, { cascade: true })
   settings: RoomSettings;

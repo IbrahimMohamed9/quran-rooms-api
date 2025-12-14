@@ -37,7 +37,7 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<RequestWithUser>();
     const user = request.user;
-
+    console.log(user);
     if (!user) {
       this.logger.warn('User not found in request');
       throw new ForbiddenException('Access denied');
@@ -74,7 +74,7 @@ export class RolesGuard implements CanActivate {
       : 'none';
 
     this.logger.warn(
-      `User ${user.userId} attempted to access resource requiring roles: ${requiredRolesList} or permissions: ${requiredPermissionsList}`,
+      `User ${user.id} attempted to access resource requiring roles: ${requiredRolesList} or permissions: ${requiredPermissionsList}`,
     );
     throw new ForbiddenException(`Access denied`);
   }

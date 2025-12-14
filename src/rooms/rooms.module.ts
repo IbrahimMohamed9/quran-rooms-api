@@ -10,26 +10,11 @@ import { LiveKitService } from './services/livekit.service';
 import { Room } from './entities/room.entity';
 import { RoomSettings } from './entities/room-settings.entity';
 import { RoomParticipant } from './entities/room-participant.entity';
-import { BlockedParticipant } from './entities/blocked-participant.entity';
-import { RoomAdminGuard } from './guards/room-admin.guard';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      Room,
-      RoomSettings,
-      RoomParticipant,
-      BlockedParticipant,
-    ]),
-  ],
+  imports: [TypeOrmModule.forFeature([Room, RoomSettings, RoomParticipant])],
   controllers: [RoomsController, ParticipantsController, AdminController],
-  providers: [
-    RoomsService,
-    ParticipantsService,
-    AdminService,
-    LiveKitService,
-    RoomAdminGuard,
-  ],
+  providers: [RoomsService, ParticipantsService, AdminService, LiveKitService],
   exports: [RoomsService, LiveKitService],
 })
 export class RoomsModule {}
