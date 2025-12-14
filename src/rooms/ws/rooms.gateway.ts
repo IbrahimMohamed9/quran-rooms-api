@@ -57,6 +57,10 @@ export class RoomsGateway
     this.server.emit('room:participantsCountChanged', { roomId, count });
   }
 
+  async broadcastParticipantsCount(roomId: number) {
+    await this.broadcastRoomParticipantsCount(roomId);
+  }
+
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
     const handshakeUserToken = client.handshake.auth?.userToken as
@@ -376,7 +380,7 @@ export class RoomsGateway
 
   @SubscribeMessage('admin:muteAll')
   @UseGuards(WsJwtAuthGuard, WsRolesGuard)
-  @RequirePermissions('participants', 'mute')
+  @RequirePermissions('participants', 'manage')
   async handleAdminMuteAll(
     @MessageBody() data: { roomId: number },
     @ConnectedSocket() client: Socket,
@@ -401,7 +405,7 @@ export class RoomsGateway
 
   @SubscribeMessage('admin:unmuteAll')
   @UseGuards(WsJwtAuthGuard, WsRolesGuard)
-  @RequirePermissions('participants', 'unmute')
+  @RequirePermissions('participants', 'manage')
   async handleAdminUnmuteAll(
     @MessageBody() data: { roomId: number },
     @ConnectedSocket() client: Socket,
@@ -424,9 +428,73 @@ export class RoomsGateway
     }
   }
 
+  @SubscribeMessage('admin:muteParticipant')
+  @UseGuards(WsJwtAuthGuard, WsRolesGuard)
+  @RequirePermissions('participants', 'manage')
+  async handleAdminMuteParticipant(
+    @MessageBody() data: { roomId: number; token: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      await this.participantsService.muteParticipant(
+        data.roomId,
+        data.token,
+        true,
+      );
+
+      this.server
+        .to(`room:${data.roomId}`)
+        .emit('room:participantMutedChanged', {
+          roomId: data.roomId,
+          userToken: data.token,
+          muted: true,
+        });
+
+      return { ok: true };
+    } catch (error) {
+      this.logger.error(
+        `Error muting participant ${data.token} in room ${data.roomId}`,
+        error,
+      );
+      return { ok: false, error: error.message };
+    }
+  }
+
+  @SubscribeMessage('admin:unmuteParticipant')
+  @UseGuards(WsJwtAuthGuard, WsRolesGuard)
+  @RequirePermissions('participants', 'manage')
+  async handleAdminUnmuteParticipant(
+    @MessageBody() data: { roomId: number; token: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      await this.participantsService.muteParticipant(
+        data.roomId,
+        data.token,
+        false,
+      );
+
+      this.server
+        .to(`room:${data.roomId}`)
+        .emit('room:participantMutedChanged', {
+          roomId: data.roomId,
+          userToken: data.token,
+          muted: false,
+        });
+
+      return { ok: true };
+    } catch (error) {
+      this.logger.error(
+        `Error unmuting participant ${data.token} in room ${data.roomId}`,
+        error,
+      );
+      return { ok: false, error: error.message };
+    }
+  }
+
   @SubscribeMessage('admin:kickParticipant')
   @UseGuards(WsJwtAuthGuard, WsRolesGuard)
-  @RequirePermissions('participants', 'kick')
+  @RequirePermissions('participants', 'manage')
   async handleAdminKickParticipant(
     @MessageBody() data: { roomId: number; token: string },
     @ConnectedSocket() client: Socket,
