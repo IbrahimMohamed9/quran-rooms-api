@@ -2,10 +2,9 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import {
   RoomParticipant,
   ParticipantRole,
@@ -56,13 +55,13 @@ export class ParticipantsService {
       settings = await this.ensureRoomSettings(roomId);
     }
 
-    const activeCount = await this.participantRepo.count({
-      where: { roomId, leftAt: IsNull() },
+    const existingParticipant = await this.participantRepo.findOne({
+      where: { roomId, token: userToken },
     });
 
-    if (activeCount >= room.maxParticipants) {
-      throw new BadRequestException('Room is full');
-    }
+    const activeCount = await this.participantRepo.count({
+      where: { roomId, isActive: true },
+    });
 
     const participantRole = user
       ? user.id === room.createdById
@@ -70,13 +69,35 @@ export class ParticipantsService {
         : ParticipantRole.PARTICIPANT
       : ParticipantRole.PARTICIPANT;
 
+    if (existingParticipant) {
+      if (!existingParticipant.isActive) {
+        if (activeCount >= room.maxParticipants) {
+          throw new BadRequestException('Room is full');
+        }
+        existingParticipant.isActive = true;
+      }
+      existingParticipant.role = participantRole;
+      await this.participantRepo.save(existingParticipant);
+
+      const token = await this.liveKitService.generateToken(
+        room.livekitRoomName,
+        userToken,
+        userName,
+        participantRole,
+      );
+
+      return { token, participant: existingParticipant };
+    }
+
+    if (activeCount >= room.maxParticipants) {
+      throw new BadRequestException('Room is full');
+    }
+
     const participant = this.participantRepo.create({
       roomId,
-      participantToken: userToken,
-      participantName: userName,
-      participantRole,
-      isMuted: settings.defaultMutedOnJoin ?? false,
-      mutedBy: settings.defaultMutedOnJoin ? room.createdById : null,
+      token: userToken,
+      role: participantRole,
+      isActive: true,
     });
 
     await this.participantRepo.save(participant);
@@ -94,7 +115,6 @@ export class ParticipantsService {
       userToken,
       userName,
       participantRole,
-      savedParticipant.isMuted,
     );
 
     return { token, participant: savedParticipant };
@@ -102,12 +122,13 @@ export class ParticipantsService {
 
   async leaveRoom(roomId: number, userToken: string): Promise<void> {
     const participant = await this.participantRepo.findOne({
-      where: { roomId, participantToken: userToken, leftAt: IsNull() },
+      where: { roomId, token: userToken, isActive: true },
     });
 
     if (!participant) throw new NotFoundException('You are not in this room');
 
-    await this.participantRepo.update(participant.id, { leftAt: new Date() });
+    participant.isActive = false;
+    await this.participantRepo.save(participant);
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
     if (room) {
@@ -120,44 +141,99 @@ export class ParticipantsService {
     }
   }
 
+  async deactivateIfActive(
+    roomId: number,
+    userToken: string,
+  ): Promise<boolean> {
+    const participant = await this.participantRepo.findOne({
+      where: { roomId, token: userToken, isActive: true },
+    });
+
+    if (!participant) return false;
+
+    participant.isActive = false;
+    await this.participantRepo.save(participant);
+    return true;
+  }
+
+  async deactivateAllActiveByToken(userToken: string): Promise<number[]> {
+    const activeParticipants = await this.participantRepo.find({
+      where: { token: userToken, isActive: true },
+    });
+
+    if (activeParticipants.length === 0) return [];
+
+    for (const participant of activeParticipants) {
+      participant.isActive = false;
+    }
+
+    await this.participantRepo.save(activeParticipants);
+
+    return Array.from(new Set(activeParticipants.map((p) => p.roomId)));
+  }
+
+  async muteAll(roomId: number, muted: boolean): Promise<number> {
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) throw new NotFoundException('Room not found');
+
+    const participants = await this.participantRepo.find({
+      where: { roomId, isActive: true },
+      order: { id: 'ASC' },
+    });
+
+    await Promise.all(
+      participants.map(async (p) => {
+        try {
+          await this.liveKitService.setMicMuted(
+            room.livekitRoomName,
+            p.token,
+            muted,
+          );
+        } catch {}
+      }),
+    );
+
+    return participants.length;
+  }
+
+  async muteParticipant(
+    roomId: number,
+    targetToken: string,
+    muted: boolean,
+  ): Promise<void> {
+    const room = await this.roomRepo.findOne({ where: { id: roomId } });
+    if (!room) throw new NotFoundException('Room not found');
+
+    const participant = await this.participantRepo.findOne({
+      where: { roomId, token: targetToken, isActive: true },
+    });
+
+    if (!participant) {
+      throw new NotFoundException('Participant not found in room');
+    }
+
+    await this.liveKitService.setMicMuted(
+      room.livekitRoomName,
+      targetToken,
+      muted,
+    );
+  }
+
   async muteSelf(
     roomId: number,
     userToken: string,
     muted: boolean,
   ): Promise<void> {
     const participant = await this.participantRepo.findOne({
-      where: { roomId, participantToken: userToken, leftAt: IsNull() },
+      where: { roomId, token: userToken, isActive: true },
     });
 
     if (!participant) {
       throw new NotFoundException('You are not in this room');
     }
 
-    const settings = await this.settingsRepo.findOne({ where: { roomId } });
-    if (!settings) throw new NotFoundException('Room settings not found');
-
-    // trying to UNMUTE
-    if (muted === false) {
-      if (!settings.allowMicControl) {
-        throw new ForbiddenException('You cannot unmute yourself in this room');
-      }
-
-      if (
-        settings.onlyAdminCanUnmute &&
-        participant.participantRole === ParticipantRole.PARTICIPANT
-      ) {
-        throw new ForbiddenException('Only admins can unmute in this room');
-      }
-    }
-
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
     if (!room) throw new NotFoundException('Room not found');
-
-    // DB state first (source of truth for your API)
-    await this.participantRepo.update(participant.id, {
-      isMuted: muted,
-      mutedBy: muted ? participant.id : null, // or null; set what you prefer
-    });
 
     // LiveKit enforcement (permission + track mute if published)
     await this.liveKitService.setMicMuted(

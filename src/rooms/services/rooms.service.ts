@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Room } from '../entities/room.entity';
 import { RoomSettings } from '../entities/room-settings.entity';
 import { RoomParticipant } from '../entities/room-participant.entity';
@@ -92,7 +92,7 @@ export class RoomsService {
   async findOne(id: number): Promise<Room> {
     const room = await this.roomRepo.findOne({
       where: { id },
-      relations: ['createdBy', 'settings', 'participants'],
+      relations: ['createdBy', 'settings'],
     });
 
     if (!room) {
@@ -160,19 +160,15 @@ export class RoomsService {
       closedAt: new Date(),
     });
 
-    await this.participantRepo.update(
-      { roomId: id, leftAt: IsNull() },
-      { leftAt: new Date() },
-    );
+    await this.participantRepo.delete({ roomId: id });
   }
 
   async getParticipants(id: number) {
     const room = await this.findOneOrFail(id);
 
     const participants = await this.participantRepo.find({
-      where: { roomId: id, leftAt: IsNull() },
-      relations: ['user'],
-      order: { joinedAt: 'ASC' },
+      where: { roomId: id, isActive: true },
+      order: { id: 'ASC' },
     });
 
     return participants;
