@@ -55,7 +55,7 @@ export class WsJwtAuthGuard implements CanActivate {
       // Get user from database
       const user = await this.usersRepo.findOne({
         where: { id: userId },
-        relations: ['role', 'role.permissions'],
+        relations: ['role'],
       });
 
       if (!user) {
@@ -63,11 +63,17 @@ export class WsJwtAuthGuard implements CanActivate {
         return false;
       }
 
-      // Add user permissions to the user object
-      const rolePermissions = user.role?.permissions;
-      const permissions = Array.isArray(rolePermissions)
-        ? rolePermissions.map((p: any) => `${p.resource}:${p.action}`)
-        : [];
+      // Permissions are stored on Role as a JSON map: Record<string, string[]>
+      // Match HTTP token format: `${resource}.${action}`
+      const rolePermissions = (user.role?.permissions || {}) as Record<
+        string,
+        string[]
+      >;
+
+      const permissions: string[] = Object.entries(rolePermissions).flatMap(
+        ([resource, actions]) =>
+          (actions || []).map((action) => `${resource}.${action}`),
+      );
 
       // Store permissions in client data along with user
       client.data.permissions = permissions;
@@ -77,7 +83,7 @@ export class WsJwtAuthGuard implements CanActivate {
 
       return true;
     } catch (error) {
-      this.logger.error('Error in WsJwtAuthGuard', error);
+      this.logger.logError(error, 'WsJwtAuthGuard.canActivate');
       return false;
     }
   }
