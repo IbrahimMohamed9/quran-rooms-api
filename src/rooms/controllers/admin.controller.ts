@@ -26,31 +26,6 @@ import { RequirePermissions } from 'src/auth/decorators/roles.decorator';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  @Post('participants/:userId/mute')
-  @RequirePermissions('participants', 'mute')
-  @ApiOperation({ summary: 'Mute a participant' })
-  @ApiResponse({ status: 200, description: 'Participant muted successfully' })
-  async muteParticipant(
-    @Param('roomId') roomId: string,
-    @Param('userId') userId: string,
-    @CurrentUser() user: Users,
-  ): Promise<{ message: string }> {
-    await this.adminService.muteParticipant(+roomId, +userId, user.id);
-    return { message: 'Participant muted successfully' };
-  }
-
-  @Post('participants/:userId/unmute')
-  @RequirePermissions('participants', 'unmute')
-  @ApiOperation({ summary: 'Unmute a participant' })
-  @ApiResponse({ status: 200, description: 'Participant unmuted successfully' })
-  async unmuteParticipant(
-    @Param('roomId') roomId: string,
-    @Param('userId') userId: string,
-  ): Promise<{ message: string }> {
-    await this.adminService.unmuteParticipant(+roomId, +userId);
-    return { message: 'Participant unmuted successfully' };
-  }
-
   @Post('participants/:userId/kick')
   @RequirePermissions('participants', 'kick')
   @ApiOperation({ summary: 'Kick a participant from the room' })
@@ -61,28 +36,5 @@ export class AdminController {
   ): Promise<{ message: string }> {
     await this.adminService.kickParticipant(+roomId, +userId);
     return { message: 'Participant kicked successfully' };
-  }
-
-  @Post('mute-all')
-  @RequirePermissions('participants', 'mute')
-  @ApiOperation({ summary: 'Mute all participants except yourself' })
-  @ApiResponse({ status: 200, description: 'All participants muted' })
-  async muteAllParticipants(
-    @Param('roomId') roomId: string,
-    @CurrentUser() user: Users,
-  ): Promise<{ message: string }> {
-    await this.adminService.muteAll(+roomId, user.id);
-    return { message: 'All participants muted' };
-  }
-
-  @Post('unmute-all')
-  @RequirePermissions('participants', 'unmute')
-  @ApiOperation({ summary: 'Unmute all participants' })
-  @ApiResponse({ status: 200, description: 'All participants unmuted' })
-  async unmuteAllParticipants(
-    @Param('roomId') roomId: string,
-  ): Promise<{ message: string }> {
-    await this.adminService.unmuteAll(+roomId);
-    return { message: 'All participants unmuted' };
   }
 }

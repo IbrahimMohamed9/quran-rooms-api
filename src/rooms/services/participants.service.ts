@@ -100,22 +100,14 @@ export class ParticipantsService {
     return { token, participant: savedParticipant };
   }
 
-  async leaveRoom(
-    roomId: number,
-    userToken: string,
-    userName: string,
-  ): Promise<void> {
+  async leaveRoom(roomId: number, userToken: string): Promise<void> {
     const participant = await this.participantRepo.findOne({
-      where: { roomId, leftAt: IsNull() },
+      where: { roomId, participantToken: userToken, leftAt: IsNull() },
     });
 
-    if (!participant) {
-      throw new NotFoundException('You are not in this room');
-    }
+    if (!participant) throw new NotFoundException('You are not in this room');
 
-    await this.participantRepo.update(participant.id, {
-      leftAt: new Date(),
-    });
+    await this.participantRepo.update(participant.id, { leftAt: new Date() });
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
     if (room) {
@@ -124,63 +116,54 @@ export class ParticipantsService {
           room.livekitRoomName,
           userToken,
         );
-      } catch (error) {}
+      } catch {}
     }
   }
 
   async muteSelf(
     roomId: number,
     userToken: string,
-    userName: string,
     muted: boolean,
   ): Promise<void> {
     const participant = await this.participantRepo.findOne({
-      where: { roomId, leftAt: IsNull() },
+      where: { roomId, participantToken: userToken, leftAt: IsNull() },
     });
 
     if (!participant) {
       throw new NotFoundException('You are not in this room');
     }
 
-    const settings = await this.settingsRepo.findOne({
-      where: { roomId },
-    });
+    const settings = await this.settingsRepo.findOne({ where: { roomId } });
+    if (!settings) throw new NotFoundException('Room settings not found');
 
-    if (!settings) {
-      throw new NotFoundException('Room settings not found');
+    // trying to UNMUTE
+    if (muted === false) {
+      if (!settings.allowMicControl) {
+        throw new ForbiddenException('You cannot unmute yourself in this room');
+      }
+
+      if (
+        settings.onlyAdminCanUnmute &&
+        participant.participantRole === ParticipantRole.PARTICIPANT
+      ) {
+        throw new ForbiddenException('Only admins can unmute in this room');
+      }
     }
-
-    if (!settings.allowMicControl && muted === false) {
-      throw new ForbiddenException('You cannot unmute yourself in this room');
-    }
-
-    if (
-      settings.onlyAdminCanUnmute &&
-      participant.participantRole === ParticipantRole.PARTICIPANT &&
-      muted === false
-    ) {
-      throw new ForbiddenException('Only admins can unmute in this room');
-    }
-
-    await this.participantRepo.update(participant.id, {
-      isMuted: muted,
-      mutedBy: null,
-    });
 
     const room = await this.roomRepo.findOne({ where: { id: roomId } });
-    if (!room) {
-      throw new NotFoundException('Room not found');
-    }
-    if (muted) {
-      await this.liveKitService.muteParticipant(
-        room.livekitRoomName,
-        userToken,
-      );
-    } else {
-      await this.liveKitService.unmuteParticipant(
-        room.livekitRoomName,
-        userToken,
-      );
-    }
+    if (!room) throw new NotFoundException('Room not found');
+
+    // DB state first (source of truth for your API)
+    await this.participantRepo.update(participant.id, {
+      isMuted: muted,
+      mutedBy: muted ? participant.id : null, // or null; set what you prefer
+    });
+
+    // LiveKit enforcement (permission + track mute if published)
+    await this.liveKitService.setMicMuted(
+      room.livekitRoomName,
+      userToken,
+      muted,
+    );
   }
 }

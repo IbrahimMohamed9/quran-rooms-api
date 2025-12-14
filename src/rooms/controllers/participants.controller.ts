@@ -196,11 +196,7 @@ export class ParticipantsController {
     @Param('roomId') roomId: string,
     @Body() userToken: UserTokenDto,
   ): Promise<{ message: string }> {
-    await this.participantsService.leaveRoom(
-      +roomId,
-      userToken.token,
-      userToken.name,
-    );
+    await this.participantsService.leaveRoom(+roomId, userToken.token);
     return { message: 'Successfully left room' };
   }
 
@@ -220,11 +216,6 @@ export class ParticipantsController {
           description: 'User token for identifying the participant',
           example: 'user_123',
         },
-        name: {
-          type: 'string',
-          description: 'Name of the participant',
-          example: 'John Doe',
-        },
         muted: {
           type: 'boolean',
           description:
@@ -232,20 +223,18 @@ export class ParticipantsController {
           example: true,
         },
       },
-      required: ['token', 'name', 'muted'],
+      required: ['token', 'muted'],
     },
     examples: {
       mute: {
         value: {
           token: 'user_123',
-          name: 'John Doe',
           muted: true,
         },
       },
       unmute: {
         value: {
           token: 'user_123',
-          name: 'John Doe',
           muted: false,
         },
       },
@@ -278,12 +267,7 @@ export class ParticipantsController {
     @Param('roomId') roomId: string,
     @Body() dto: MuteSelfDto & UserTokenDto,
   ): Promise<{ message: string }> {
-    await this.participantsService.muteSelf(
-      +roomId,
-      dto.token,
-      dto.name,
-      dto.muted,
-    );
+    await this.participantsService.muteSelf(+roomId, dto.token, dto.muted);
     return { message: `Successfully ${dto.muted ? 'muted' : 'unmuted'}` };
   }
 }

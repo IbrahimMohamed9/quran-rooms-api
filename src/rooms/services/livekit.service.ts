@@ -42,53 +42,57 @@ export class LiveKitService {
     at.addGrant({
       room: roomName,
       roomJoin: true,
-      canPublish: !isMuted,
+      canPublish: true,
       canSubscribe: true,
       canPublishData: true,
       canPublishSources: [TrackSource.MICROPHONE],
     });
 
-    return await at.toJwt();
+    return at.toJwt();
   }
 
-  async muteParticipant(roomName: string, participantIdentity: string) {
-    await this.roomService.mutePublishedTrack(
-      roomName,
-      participantIdentity,
-      'microphone',
-      true,
-    );
+  private async getMicTrackSid(
+    roomName: string,
+    identity: string,
+  ): Promise<string | null> {
+    const p = await this.roomService.getParticipant(roomName, identity);
+    const micTrack = p.tracks?.find((t) => t.source === TrackSource.MICROPHONE);
+    return micTrack?.sid ?? null;
   }
 
-  async unmuteParticipant(roomName: string, participantIdentity: string) {
-    await this.roomService.mutePublishedTrack(
-      roomName,
-      participantIdentity,
-      'microphone',
-      false,
-    );
+  async setMicMuted(roomName: string, identity: string, muted: boolean) {
+    await this.roomService.updateParticipant(roomName, identity, undefined, {
+      canPublish: !muted,
+    });
+
+    const micSid = await this.getMicTrackSid(roomName, identity);
+    if (micSid) {
+      await this.roomService.mutePublishedTrack(
+        roomName,
+        identity,
+        micSid,
+        muted,
+      );
+    }
   }
 
   async removeParticipant(roomName: string, participantIdentity: string) {
     await this.roomService.removeParticipant(roomName, participantIdentity);
   }
 
-  async getParticipants(roomName: string) {
-    const participants = await this.roomService.listParticipants(roomName);
-    return participants;
+  async listParticipants(roomName: string) {
+    return this.roomService.listParticipants(roomName);
   }
 
   async deleteRoom(roomName: string) {
     await this.roomService.deleteRoom(roomName);
   }
 
-  async muteAllParticipants(roomName: string, excludeIdentity?: string) {
-    const participants = await this.getParticipants(roomName);
-
-    const mutePromises = participants
-      .filter((p) => p.identity !== excludeIdentity)
-      .map((p) => this.muteParticipant(roomName, p.identity));
-
-    await Promise.all(mutePromises);
+  async createLiveKitRoom(roomName: string, maxParticipants: number) {
+    await this.roomService.createRoom({
+      name: roomName,
+      emptyTimeout: 300,
+      maxParticipants,
+    });
   }
 }

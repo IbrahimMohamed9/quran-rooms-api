@@ -36,11 +36,16 @@ export class RoomsService {
 
     const savedRoom = await this.roomRepo.save(newRoom);
 
+    await this.liveKitService.createLiveKitRoom(
+      livekitRoomName,
+      dto.maxParticipants || 50,
+    );
+
     const settings = this.settingsRepo.create({
       roomId: savedRoom.id,
       allowMicControl: dto.settings?.allowMicControl ?? true,
-      defaultMutedOnJoin: dto.settings?.defaultMutedOnJoin ?? false,
-      onlyAdminCanUnmute: dto.settings?.onlyAdminCanUnmute ?? false,
+      defaultMutedOnJoin: false,
+      onlyAdminCanUnmute: false,
       audioQuality: dto.settings?.audioQuality ?? AudioQuality.MEDIUM,
     });
 
