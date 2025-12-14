@@ -61,10 +61,6 @@ export class LiveKitService {
   }
 
   async setMicMuted(roomName: string, identity: string, muted: boolean) {
-    await this.roomService.updateParticipant(roomName, identity, undefined, {
-      canPublish: !muted,
-    });
-
     const micSid = await this.getMicTrackSid(roomName, identity);
     if (micSid) {
       await this.roomService.mutePublishedTrack(

@@ -13,6 +13,7 @@ import {
 import { Room } from '../entities/room.entity';
 import { RoomSettings } from '../entities/room-settings.entity';
 import { LiveKitService } from './livekit.service';
+import { Users } from 'src/users/entities/users.entity';
 
 @Injectable()
 export class ParticipantsService {
@@ -39,7 +40,7 @@ export class ParticipantsService {
     roomId: number,
     userToken: string,
     userName: string,
-    userId?: number,
+    user?: Users,
   ): Promise<{ token: string; participant: RoomParticipant }> {
     const room = await this.roomRepo.findOne({
       where: { id: roomId, isActive: true },
@@ -63,16 +64,16 @@ export class ParticipantsService {
       throw new BadRequestException('Room is full');
     }
 
-    const isFirstParticipant = activeCount === 0;
-    const participantRole = isFirstParticipant
-      ? ParticipantRole.ADMIN
+    const participantRole = user
+      ? user.id === room.createdById
+        ? ParticipantRole.ADMIN
+        : ParticipantRole.PARTICIPANT
       : ParticipantRole.PARTICIPANT;
 
     const participant = this.participantRepo.create({
       roomId,
-      userId: userId || null,
-      participantToken: !userId ? userToken : null,
-      participantName: !userId ? userName : null,
+      participantToken: userToken,
+      participantName: userName,
       participantRole,
       isMuted: settings.defaultMutedOnJoin ?? false,
       mutedBy: settings.defaultMutedOnJoin ? room.createdById : null,
@@ -82,7 +83,6 @@ export class ParticipantsService {
 
     const savedParticipant = await this.participantRepo.findOne({
       where: { id: participant.id },
-      relations: ['user'],
     });
 
     if (!savedParticipant) {

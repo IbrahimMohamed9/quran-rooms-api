@@ -60,7 +60,6 @@ export class ParticipantsController {
           id: 1,
           roomId: 1,
           userId: 123,
-          participantRole: 'admin',
           isMuted: false,
           joinedAt: '2025-12-14T00:55:00Z',
         },
@@ -84,12 +83,11 @@ export class ParticipantsController {
     @Body() userToken: UserTokenDto,
     @Request() req: any,
   ) {
-    const userId = req.user?.id;
     return this.participantsService.joinRoom(
       +roomId,
       userToken.token,
       userToken.name,
-      userId,
+      req.user,
     );
   }
 
@@ -129,7 +127,6 @@ export class ParticipantsController {
           userId: null,
           participantToken: 'guest_abc123xyz',
           participantName: 'Guest User',
-          participantRole: 'participant',
           isMuted: false,
           joinedAt: '2025-12-14T00:55:00Z',
         },
