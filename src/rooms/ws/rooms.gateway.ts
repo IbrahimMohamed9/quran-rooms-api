@@ -312,6 +312,10 @@ export class RoomsGateway
         throw new BadRequestException('Missing user token');
       }
 
+      this.logger.log(
+        `participant:leave (roomId=${data.roomId}, token=${userToken}, socket=${client.id})`,
+      );
+
       await this.participantsService.leaveRoom(data.roomId, userToken);
 
       // Leave the room channel
